@@ -47,6 +47,14 @@ class Particle(object):
         q = quaternion_from_euler(0, 0, self.theta)
         return Pose(position=Point(x=self.x, y=self.y, z=0.0),
                     orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3]))
+    
+    def predict(self, delta):
+        """ Predict the next position based on the delta measured using
+            the odometry """
+        self.x += delta[0] * math.cos(self.theta) - delta[1] * math.sin(self.theta)
+        self.y += delta[0] * math.sin(self.theta) + delta[1] * math.cos(self.theta)
+        self.theta += delta[2]
+        self.theta = (self.theta + math.pi) % (2 * math.pi) - math.pi  # Normalize theta to [-pi, pi]
 
     # TODO: define additional helper functions if needed
 
@@ -83,6 +91,7 @@ class ParticleFilter(Node):
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
         self.robot_pose = None
+        self.odom_noise_rate = 0.1 # odom noise for pose prediction
         # TODO: define additional constants if needed
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
@@ -202,7 +211,8 @@ class ParticleFilter(Node):
 
         # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
         # just to get started we will fix the robot's pose to always be at the origin
-        self.robot_pose = Pose()
+        max_weight_particle = max(self.particle_cloud, key=lambda p: p.w)
+        self.robot_pose = max_weight_particle.as_pose() # Compute the most likely pose (mode of the distribution)
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
@@ -229,6 +239,14 @@ class ParticleFilter(Node):
             return
 
         # TODO: modify particles using delta
+        for p in self.particle_cloud:
+            before_pose = deepcopy(p)
+            p.predict(self.current_odom_xy_theta)
+            
+            self.add_noise_to_pose(p)
+            
+            assert (p.x != before_pose.x or p.y != before_pose.y or p.theta != before_pose.theta), \
+                "Particle pose should change after adding noise"
 
     def resample_particles(self):
         """ Resample the particles according to the new particle weights.
@@ -289,6 +307,12 @@ class ParticleFilter(Node):
         # self.scan_to_process is set to None in the run_loop 
         if self.scan_to_process is None:
             self.scan_to_process = msg
+
+    def add_noise_to_pose(self, pose):
+        """ Add noise to the given pose based on the odometry noise rate """
+        pose.x += np.random.randn() * self.odom_noise_rate
+        pose.y += np.random.randn() * self.odom_noise_rate
+        pose.theta += np.random.randn() * self.odom_noise_rate
 
 def main(args=None):
     rclpy.init()
