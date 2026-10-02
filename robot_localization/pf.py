@@ -6,6 +6,8 @@ import rclpy
 from threading import Thread
 from rclpy.time import Time
 from rclpy.node import Node
+from numpy.random import random_sample
+from copy import deepcopy
 from std_msgs.msg import Header
 from sensor_msgs.msg import LaserScan
 from nav2_msgs.msg import ParticleCloud, Particle
@@ -80,7 +82,7 @@ class ParticleFilter(Node):
 
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
-
+        self.robot_pose = None
         # TODO: define additional constants if needed
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
@@ -174,6 +176,20 @@ class ParticleFilter(Node):
                math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or \
                math.fabs(new_odom_xy_theta[2] - self.current_odom_xy_theta[2]) > self.a_thresh
 
+    # From the one-dimensional example
+    @staticmethod
+    def weighted_values(values, probabilities, size):
+        """ Return a random sample of size elements from the set values with the specified probabilities
+            values: the values to sample from (numpy.ndarray)
+            probabilities: the probability of selecting each element in values (numpy.ndarray)
+            size: the number of samples
+        """
+        bins = np.add.accumulate(probabilities)
+        indices = np.digitize(random_sample(size), bins)
+        sample = []
+        for ind in indices:
+            sample.append(deepcopy(values[ind]))
+        return sample
 
     def update_robot_pose(self):
         """ Update the estimate of the robot's pose given the updated particles.
@@ -221,6 +237,7 @@ class ParticleFilter(Node):
             function draw_random_sample in helper_functions.py.
         """
         # make sure the distribution is normalized
+        self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, [p.weight for p in self.particle_cloud], len(self.particle_cloud))
         self.normalize_particles()
         # TODO: fill out the rest of the implementation
 
@@ -253,8 +270,11 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        # TODO: implement this
+        cloud_size = len(self.particle_cloud)
+        for p in self.particle_cloud:
+            p.w = 1/cloud_size
         pass
+        assert math.isclose(sum(self.particle_cloud), 1.0), f"Particle sums should add to 1, but got {sum(self.particle_cloud)}"
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()
