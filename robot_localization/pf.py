@@ -239,14 +239,13 @@ class ParticleFilter(Node):
         # make sure the distribution is normalized
         self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, [p.weight for p in self.particle_cloud], len(self.particle_cloud))
         self.normalize_particles()
-        # TODO: fill out the rest of the implementation
 
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        # TODO: implement this
+        # TODO: implement this - Isa
         pass
 
     def update_initial_pose(self, msg):
@@ -263,7 +262,7 @@ class ParticleFilter(Node):
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
         self.particle_cloud = []
-        # TODO create particles
+        # TODO create particles - Isa 
 
         self.normalize_particles()
         self.update_robot_pose()
