@@ -259,12 +259,23 @@ class ParticleFilter(Node):
             Arguments
             xy_theta: a triple consisting of the mean x, y, and theta (yaw) to initialize the
                       particle cloud around.  If this input is omitted, the odometry will be used """
+
+        variation = [1,1,math.pi/4]  # the standard deviation of the noise to add to each particle
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
+            variation = [2,2,math.pi/2]  # if we are using odometry to initialize the particles, we will use more noise
         self.particle_cloud = []
-        # TODO create particles - Isa 
 
+        particle_init_transform = np.random.normal(
+            loc=xy_theta,
+            scale=variation,
+            size=(self.n_particles, 3)
+        )
+        for t in particle_init_transform:
+            self.particle_cloud.append(Particle(x=t[0], y=t[1], theta=t[2], w=1))
         self.normalize_particles()
+
+        assert len(self.particle_cloud) == self.n_particles, f"Particle cloud should have {self.n_particles} particles, but got {len(self.particle_cloud)}"
         self.update_robot_pose()
 
     def normalize_particles(self):
@@ -272,7 +283,8 @@ class ParticleFilter(Node):
         cloud_size = len(self.particle_cloud)
         for p in self.particle_cloud:
             p.w = 1/cloud_size
-        pass
+        # Check for negatives / improper sum
+        assert all(p.w >= 0 for p in self.particle_cloud), "Particle weights should be non-negative"
         assert math.isclose(sum(self.particle_cloud), 1.0), f"Particle sums should add to 1, but got {sum(self.particle_cloud)}"
 
     def publish_particles(self, timestamp):
