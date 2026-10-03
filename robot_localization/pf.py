@@ -113,7 +113,7 @@ class ParticleFilter(Node):
         self.particle_cloud = []
 
         self.current_odom_xy_theta = []
-        self.occupancy_field = OccupancyField(self)
+        self.occupancy_field : OccupancyField = OccupancyField(self)
         self.transform_helper = TFHelper(self)
 
         # we are using a thread to work around single threaded execution bottleneck
@@ -263,8 +263,17 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-        # TODO: implement this - Isa
-        pass
+        assert len(r) == len(theta), "Length of r and theta must be the same"
+        assert len(r) > 0, "r and theta must not be empty"
+        assert all(d > 0 for d in r), "Distance readings must be positive"
+        assert all(t >= -math.pi and t <= math.pi for t in theta), "Angle readings must be between -pi and pi"
+        
+        shortest_distance = min(r)
+        for p in self.particle_cloud:
+            particle_shortest_distance = self.occupancy_field.get_closest_obstacle_distance(p.x, p.y)
+            p.weight = 1/abs(shortest_distance - particle_shortest_distance + 1e-6)  # Add a small constant to avoid division by zero
+            assert p.weight > 0, "Particle weight should be positive"
+        self.normalize_particles()
 
     def update_initial_pose(self, msg):
         """ Callback function to handle re-initializing the particle filter based on a pose estimate.
@@ -298,9 +307,9 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
-        cloud_size = len(self.particle_cloud)
+        sum_weights = sum(p.w for p in self.particle_cloud)
         for p in self.particle_cloud:
-            p.w = 1/cloud_size
+            p.w = p.w / sum_weights if sum_weights > 0 else 1.0 / len(self.particle_cloud)  # Avoid division by zero, assign equal weights if sum is zero
         # Check for negatives / improper sum
         assert all(p.w >= 0 for p in self.particle_cloud), "Particle weights should be non-negative"
         assert math.isclose(sum(self.particle_cloud), 1.0), f"Particle sums should add to 1, but got {sum(self.particle_cloud)}"
