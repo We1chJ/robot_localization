@@ -1,8 +1,11 @@
 import math
+from unittest.mock import MagicMock
+import rclpy
 from pf import Particle, ParticleFilter
 from robot_localization.occupancy_field import OccupancyField
-
+import rclpy.client
 def test_update_particle_weights():
+    
     pf : ParticleFilter = ParticleFilter()
     # Make mock occupancy field for testing
     pf.occupancy_field = OccupancyField(pf)
@@ -71,6 +74,9 @@ def test_resample_particles():
         assert math.isclose(p.weight, 1/3), "All particle weights should be equal after resampling"
 
 def test_initialize_particles():
+    rclpy.init()
+    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
+
     pf : ParticleFilter = ParticleFilter()
     # Initialize particles with mean x and y of 5, theta of 0.
     pf.initialize_particle_cloud(xy_theta = (5.0, 5.0, 0.0), num_particles=60)
@@ -88,6 +94,9 @@ def test_initialize_particles():
     # Ensure all particles have equal weights
     for p in pf.particle_cloud:
         assert math.isclose(p.weight, 1/60), "All particle weights should be equal after initialization"
+        
+    pf.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == "__main__":
     test_update_particle_weights()

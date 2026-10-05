@@ -99,6 +99,7 @@ class ParticleFilter(Node):
 
         # publish the current particle cloud.  This enables viewing particles in rviz.
         self.particle_pub = self.create_publisher(ParticleCloud, "particle_cloud", qos_profile_sensor_data)
+        self.pose_pub = self.create_publisher(Pose, "robot_pose", qos_profile_sensor_data)
 
         # laser_subscriber listens for data from the lidar
         self.create_subscription(LaserScan, self.scan_topic, self.scan_received, 10)
@@ -213,6 +214,8 @@ class ParticleFilter(Node):
         # just to get started we will fix the robot's pose to always be at the origin
         max_weight_particle = max(self.particle_cloud, key=lambda p: p.w)
         self.robot_pose = max_weight_particle.as_pose() # Compute the most likely pose (mode of the distribution)
+        self.pose_pub.publish(self.robot_pose)
+
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
