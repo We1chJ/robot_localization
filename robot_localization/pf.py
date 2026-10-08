@@ -261,6 +261,67 @@ class ParticleFilter(Node):
         self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, [p.weight for p in self.particle_cloud], len(self.particle_cloud))
         self.normalize_particles()
 
+    def resample_particles_2d_distribution(self):
+        """ Resample the particles according to the new particle weights.
+            The weights stored with each particle should define the probability that a particular
+            particle is selected in the resampling step.  You may want to make use of the given helper
+            function draw_random_sample in helper_functions.py.
+        """
+        positions = np.array([(p.x, p.y) for p in self.particle_cloud])
+        weights = np.array([p.w for p in self.particle_cloud])
+        thetas = np.array([p.theta for p in self.particle_cloud])
+
+        origin = self.occupancy_field.map.info.origin.position
+        resolution = self.occupancy_field.map.info.resolution
+        width = self.occupancy_field.map.info.width * resolution
+        height = self.occupancy_field.map.info.height * resolution
+
+        weight_map, x_edges, y_edges = np.histogram2d(
+            positions[:, 0],
+            positions[:, 1],
+            bins=10,
+            range=[
+                [origin.x, origin.x + width],
+                [origin.y, origin.y + height],
+            ],
+            weights=weights,
+        )
+
+        theta_map, x_edges, y_edges = np.histogram2d(
+            positions[:, 0],
+            positions[:, 1],
+            bins=10,
+            range=[
+                [origin.x, origin.x + width],
+                [origin.y, origin.y + height],
+            ],
+            weights=thetas,
+        )
+
+        # Normalize the weight map to create a probability distribution
+        weight_map = weight_map.ravel()
+        probs = weight_map / np.sum(weight_map)
+
+        # Sample points on the 2D distribution defined by the weight map
+        sampled_indexes = np.random.choice(len(probs), size=len(self.particle_cloud), p=probs)
+
+        i_indices, j_indices = np.unravel_index(sampled_indexes, H.shape)
+
+        x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
+        y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
+
+        weights = weight_map[sampled_indexes]
+
+        sampled_x_centers = x_centers[i_indices]
+        sampled_y_centers = y_centers[j_indices]
+        sampled_thetas = theta_map[sampled_indexes]
+
+        self.particle_cloud = [
+            Particle(x=sampled_x_centers[i], y=sampled_y_centers[i], theta=sampled_thetas[i], w=weights[i])
+            for i in range(len(sampled_x_centers))]
+
+
+
     def update_particles_with_laser(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
@@ -315,7 +376,7 @@ class ParticleFilter(Node):
             p.w = p.w / sum_weights if sum_weights > 0 else 1.0 / len(self.particle_cloud)  # Avoid division by zero, assign equal weights if sum is zero
         # Check for negatives / improper sum
         assert all(p.w >= 0 for p in self.particle_cloud), "Particle weights should be non-negative"
-        assert math.isclose(sum(self.particle_cloud), 1.0), f"Particle sums should add to 1, but got {sum(self.particle_cloud)}"
+        assert math.isclose(sum_weights, 1.0), f"Particle sums should add to 1, but got {sum(self.particle_cloud)}"
 
     def publish_particles(self, timestamp):
         msg = ParticleCloud()

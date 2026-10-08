@@ -32,6 +32,9 @@ def test_update_particle_weights():
 
 
 def test_normalize_particles():
+    rclpy.init()
+    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
+    
     pf : ParticleFilter = ParticleFilter()
     
     pf.particle_cloud = [
@@ -49,6 +52,9 @@ def test_normalize_particles():
     assert math.isclose(pf.particle_cloud[1].weight / pf.particle_cloud[2].weight, 3.0 / 5.0), "Relative weights should be preserved after normalization"
 
 def test_resample_particles():
+    rclpy.init()
+    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
+    
     pf : ParticleFilter = ParticleFilter()
 
     # Create starting particles with various weights
@@ -94,7 +100,7 @@ def test_initialize_particles():
     # Ensure all particles have equal weights
     for p in pf.particle_cloud:
         assert math.isclose(p.weight, 1/60), "All particle weights should be equal after initialization"
-        
+
     pf.destroy_node()
     rclpy.shutdown()
 
