@@ -334,7 +334,10 @@ class ParticleFilter(Node):
         shortest_distance = min(r)
         for p in self.particle_cloud:
             particle_shortest_distance = self.occupancy_field.get_closest_obstacle_distance(p.x, p.y)
-            p.weight = 1/abs(shortest_distance - particle_shortest_distance + 1e-6)  # Add a small constant to avoid division by zero
+            p.weight = 1/abs(shortest_distance - particle_shortest_distance + 1e-6)  # Add a small constant to avoid division by zero4
+            print("Particle at ({:.2f}, {:.2f}) has weight {:.4f}, shortest distance: {:.4f}, particle shortest distance: {:.4f}".format(p.x, p.y, p.weight, shortest_distance, particle_shortest_distance))
+            if math.isnan(p.weight) or p.weight < 0:
+                p.weight = 0.0
             assert p.weight >= 0, f"Particle weight should be positive (Was {p.weight})"
         self.normalize_particles()
 
