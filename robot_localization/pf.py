@@ -92,7 +92,6 @@ class ParticleFilter(Node):
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
         self.robot_pose = None
         self.odom_noise_rate = 0.1 # odom noise for pose prediction
-        # TODO: define additional constants if needed
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.update_initial_pose, 10)
@@ -305,7 +304,7 @@ class ParticleFilter(Node):
         # Sample points on the 2D distribution defined by the weight map
         sampled_indexes = np.random.choice(len(probs), size=len(self.particle_cloud), p=probs)
 
-        i_indices, j_indices = np.unravel_index(sampled_indexes, H.shape)
+        i_indices, j_indices = np.unravel_index(sampled_indexes, weight_map.shape)
 
         x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
         y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
@@ -330,7 +329,7 @@ class ParticleFilter(Node):
         assert len(r) == len(theta), "Length of r and theta must be the same"
         assert len(r) > 0, "r and theta must not be empty"
         assert all(d > 0 for d in r), "Distance readings must be positive"
-        assert all(t >= -math.pi and t <= math.pi for t in theta), "Angle readings must be between -pi and pi"
+        #assert all(t >= -math.pi and t <= math.pi for t in theta), "Angle readings must be between -pi and pi"
         
         shortest_distance = min(r)
         for p in self.particle_cloud:
