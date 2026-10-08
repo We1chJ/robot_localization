@@ -375,6 +375,7 @@ class ParticleFilter(Node):
         for p in self.particle_cloud:
             p.w = p.w / sum_weights if sum_weights > 0 else 1.0 / len(self.particle_cloud)  # Avoid division by zero, assign equal weights if sum is zero
         # Check for negatives / improper sum
+        sum_weights = sum(p.w for p in self.particle_cloud)
         assert all(p.w >= 0 for p in self.particle_cloud), "Particle weights should be non-negative"
         assert math.isclose(sum_weights, 1.0), f"Particle sums should add to 1, but got {sum_weights}"
 
