@@ -1,0 +1,4 @@
+failed to create symbolic link '/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization/ament_cmake_python/robot_localization/robot_localization' because existing path cannot be removed: Is a directory
+gmake[2]: *** [CMakeFiles/ament_cmake_python_symlink_robot_localization.dir/build.make:70: CMakeFiles/ament_cmake_python_symlink_robot_localization] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:138: CMakeFiles/ament_cmake_python_symlink_robot_localization.dir/all] Error 2
+gmake: *** [Makefile:146: all] Error 2

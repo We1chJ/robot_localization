@@ -17,10 +17,10 @@ from rclpy.duration import Duration
 import math
 import time
 import numpy as np
-from occupancy_field import OccupancyField
-from helper_functions import TFHelper
+from robot_localization.occupancy_field import OccupancyField
+from robot_localization.helper_functions import TFHelper
 from rclpy.qos import qos_profile_sensor_data
-from angle_helpers import quaternion_from_euler
+from robot_localization.angle_helpers import quaternion_from_euler
 
 class Particle(object):
     """ Represents a hypothesis (particle) of the robot's pose consisting of x,y and theta (yaw)
@@ -91,7 +91,7 @@ class ParticleFilter(Node):
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
         self.robot_pose = None
-        self.odom_noise_rate = 0.1 # odom noise for pose prediction
+        self.odom_noise_rate = 0.03 # odom noise for pose prediction
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.update_initial_pose, 10)
@@ -176,14 +176,15 @@ class ParticleFilter(Node):
             self.update_particles_with_odom()    # update based on odometry
             self.update_particles_with_laser(r, theta)   # update based on laser scan
             self.update_robot_pose()                # update robot's pose based on particles
-            self.resample_particles()               # resample particles to focus on areas of high density
-        # publish particles (so things like rviz can see them)
+            weights = np.array([p.w for p in self.particle_cloud])
+            if 1.0 / np.sum(weights ** 2) < 0.5 * len(self.particle_cloud):
+                self.resample_particles() 
         self.publish_particles(msg.header.stamp)
 
     def moved_far_enough_to_update(self, new_odom_xy_theta):
         return math.fabs(new_odom_xy_theta[0] - self.current_odom_xy_theta[0]) > self.d_thresh or \
                math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or \
-               math.fabs(new_odom_xy_theta[2] - self.current_odom_xy_theta[2]) > self.a_thresh
+               math.fabs(self.transform_helper.angle_diff(new_odom_xy_theta[2], self.current_odom_xy_theta[2])) > self.a_thresh
 
     # From the one-dimensional example
     @staticmethod
@@ -233,17 +234,16 @@ class ParticleFilter(Node):
             old_odom_xy_theta = self.current_odom_xy_theta
             delta = (new_odom_xy_theta[0] - self.current_odom_xy_theta[0],
                      new_odom_xy_theta[1] - self.current_odom_xy_theta[1],
-                     new_odom_xy_theta[2] - self.current_odom_xy_theta[2])
+                     self.transform_helper.angle_diff(new_odom_xy_theta[2], self.current_odom_xy_theta[2]))
 
             self.current_odom_xy_theta = new_odom_xy_theta
         else:
             self.current_odom_xy_theta = new_odom_xy_theta
             return
 
-        # TODO: modify particles using delta
         for p in self.particle_cloud:
             before_pose = deepcopy(p)
-            p.predict(self.current_odom_xy_theta)
+            p.predict(delta)
             
             self.add_noise_to_pose(p)
             
@@ -256,8 +256,48 @@ class ParticleFilter(Node):
             particle is selected in the resampling step.  You may want to make use of the given helper
             function draw_random_sample in helper_functions.py.
         """
+        weights = np.array([p.w for p in self.particle_cloud])
+        weights = np.nan_to_num(weights, nan=0.0)
+        total_weight = weights.sum()
+        if total_weight <= 0 or not np.isfinite(total_weight):
+            weights[:] = 1.0 / len(weights)
+        else:
+            weights /= weights.sum()
+
+        xlocs = np.array([p.x for p in self.particle_cloud])
+        ylocs = np.array([p.y for p in self.particle_cloud])
+        thetas = np.array([p.theta for p in self.particle_cloud])
+
+        meanx = np.sum(weights * xlocs)
+        meany = np.sum(weights * ylocs)
+
+        # For AI use policy - the atan2 method was exposed by Gemini, which summarized a user on StackOverflow's post
+        meantheta = math.atan2(
+            np.sum(weights * np.sin(thetas)),
+            np.sum(weights * np.cos(thetas))
+        )
+
+        thetaerror = np.arctan2(
+            np.sin(thetas - meantheta),
+            np.cos(thetas - meantheta)
+        )
+
+        sigmax = np.sqrt(np.sum(weights * (xlocs - meanx) ** 2))
+        sigmay = np.sqrt(np.sum(weights * (ylocs - meany) ** 2))
+        sigtheta = np.sqrt(np.sum(weights * thetaerror ** 2))
+
+        noisemod = 0.25
+        noisex = max(0.05, sigmax * noisemod)
+        noisey = max(0.05, sigmay * noisemod)
+        noisetheta = max(0.03, sigtheta * noisemod)
         # make sure the distribution is normalized
-        self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, [p.weight for p in self.particle_cloud], len(self.particle_cloud))
+        self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, weights, len(self.particle_cloud))
+        for p in self.particle_cloud:
+            p.x += np.random.normal(0.0, noisex)
+            p.y += np.random.normal(0.0, noisey)
+            p.theta += np.random.normal(0.0, noisetheta)
+            p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
+            p.w = 1.0 / len(self.particle_cloud)
         self.normalize_particles()
 
     def resample_particles_2d_distribution(self):
@@ -278,7 +318,7 @@ class ParticleFilter(Node):
         weight_map, x_edges, y_edges = np.histogram2d(
             positions[:, 0],
             positions[:, 1],
-            bins=10,
+            bins=30,
             range=[
                 [origin.x, origin.x + width],
                 [origin.y, origin.y + height],
@@ -286,42 +326,72 @@ class ParticleFilter(Node):
             weights=weights,
         )
 
-        theta_map, x_edges, y_edges = np.histogram2d(
-            positions[:, 0],
-            positions[:, 1],
-            bins=10,
-            range=[
-                [origin.x, origin.x + width],
-                [origin.y, origin.y + height],
-            ],
-            weights=thetas,
-        )
+        flat_weights = weight_map.ravel()
+        total_weight = np.sum(flat_weights)
+        if total_weight <= 0 or not np.isfinite(total_weight):
+            self.normalize_particles()
+            return
 
-        # Normalize the weight map to create a probability distribution
-        weight_map = weight_map.ravel()
-        probs = weight_map / np.sum(weight_map)
-
-        # Sample points on the 2D distribution defined by the weight map
+        probs = flat_weights / total_weight
         sampled_indexes = np.random.choice(len(probs), size=len(self.particle_cloud), p=probs)
-
         i_indices, j_indices = np.unravel_index(sampled_indexes, weight_map.shape)
 
         x_centers = 0.5 * (x_edges[:-1] + x_edges[1:])
         y_centers = 0.5 * (y_edges[:-1] + y_edges[1:])
 
-        weights = weight_map[sampled_indexes]
+        x_bins = np.clip(np.digitize(positions[:, 0], x_edges) - 1, 0, len(x_centers) - 1)
+        y_bins = np.clip(np.digitize(positions[:, 1], y_edges) - 1, 0, len(y_centers) - 1)
+        uniform_weight = 1.0 / len(self.particle_cloud)
+        resampled_particles = []
 
-        sampled_x_centers = x_centers[i_indices]
-        sampled_y_centers = y_centers[j_indices]
-        sampled_thetas = theta_map[sampled_indexes]
+        for i, j in zip(i_indices, j_indices):
+            candidates = np.flatnonzero((x_bins == i) & (y_bins == j))
+            candidate_weights = weights[candidates]
+            candidate_weights = candidate_weights / np.sum(candidate_weights)
+            source_index = np.random.choice(candidates, p=candidate_weights)
+            resampled_particles.append(Particle(x=x_centers[i], y=y_centers[j], theta=thetas[source_index], w=uniform_weight))
 
-        self.particle_cloud = [
-            Particle(x=sampled_x_centers[i], y=sampled_y_centers[i], theta=sampled_thetas[i], w=weights[i])
-            for i in range(len(sampled_x_centers))]
-
-
+        self.particle_cloud = resampled_particles
 
     def update_particles_with_laser(self, r, theta):
+        """ Updates the particle weights in response to the scan data
+            r: the distance readings to obstacles
+            theta: the angle relative to the robot frame for each corresponding reading 
+        """
+
+        beam_instances = np.linspace(0, len(r) - 1, num=10, dtype=int)
+        range_max = 10
+        sigma = 0.75
+
+        for p in self.particle_cloud:
+            errors = []
+            for index in beam_instances:
+                beam_r = r[index]
+                beam_theta = theta[index]
+
+                if not np.isfinite(beam_r) or beam_r > range_max:
+                    beam_r = range_max
+
+                particle_distance = self.occupancy_field.raycast(p.x, p.y, p.theta + beam_theta)
+                errors.append((beam_r - particle_distance) ** 2)
+            p.w = np.exp(-0.5 * np.mean(errors) / (sigma ** 2))
+        raw_weights = np.array([p.w for p in self.particle_cloud])
+
+        print(
+            "RAW weights:",
+            raw_weights.min(),
+            raw_weights.max()
+        )
+        self.normalize_particles()
+        weights = np.array([p.w for p in self.particle_cloud])
+        print(
+            "NORMALIZED weights:",
+            weights.min(),
+            weights.max(),
+            "ESS:",
+            1.0 / np.sum(weights ** 2)
+        )
+    def update_particles_with_laser_closest_obstacle(self, r, theta):
         """ Updates the particle weights in response to the scan data
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
@@ -334,11 +404,11 @@ class ParticleFilter(Node):
         shortest_distance = min(r)
         for p in self.particle_cloud:
             particle_shortest_distance = self.occupancy_field.get_closest_obstacle_distance(p.x, p.y)
-            p.weight = 1/abs(shortest_distance - particle_shortest_distance + 1e-6)  # Add a small constant to avoid division by zero4
-            print("Particle at ({:.2f}, {:.2f}) has weight {:.4f}, shortest distance: {:.4f}, particle shortest distance: {:.4f}".format(p.x, p.y, p.weight, shortest_distance, particle_shortest_distance))
-            if math.isnan(p.weight) or p.weight < 0:
-                p.weight = 0.0
-            assert p.weight >= 0, f"Particle weight should be positive (Was {p.weight})"
+            p.w = 1/abs(shortest_distance - particle_shortest_distance + 1e-6)  # Add a small constant to avoid division by zero4
+            print("Particle at ({:.2f}, {:.2f}) has weight {:.4f}, shortest distance: {:.4f}, particle shortest distance: {:.4f}".format(p.x, p.y, p.w, shortest_distance, particle_shortest_distance))
+            if math.isnan(p.w) or p.w < 0:
+                p.w = 0.0
+            assert p.w >= 0, f"Particle weight should be positive (Was {p.w})"
         self.normalize_particles()
 
     def update_initial_pose(self, msg):
@@ -402,6 +472,11 @@ class ParticleFilter(Node):
         pose.x += np.random.randn() * self.odom_noise_rate
         pose.y += np.random.randn() * self.odom_noise_rate
         pose.theta += np.random.randn() * self.odom_noise_rate
+
+        if pose.theta > math.pi:
+            pose.theta -= 2 * math.pi
+        elif pose.theta < -math.pi:
+            pose.theta += 2 * math.pi
 
 def main(args=None):
     rclpy.init()

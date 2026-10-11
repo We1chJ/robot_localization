@@ -1,0 +1,44 @@
+Built target ament_cmake_python_symlink_robot_localization
+running egg_info
+writing robot_localization.egg-info/PKG-INFO
+writing dependency_links to robot_localization.egg-info/dependency_links.txt
+writing top-level names to robot_localization.egg-info/top_level.txt
+reading manifest file 'robot_localization.egg-info/SOURCES.txt'
+writing manifest file 'robot_localization.egg-info/SOURCES.txt'
+Built target ament_cmake_python_build_robot_localization_egg
+-- Install configuration: ""
+-- Execute custom install script
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/robot_localization/pf.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/launch_map_server.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/test_amcl.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/test_pf.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/pythonpath.sh
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/pythonpath.dsv
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/PKG-INFO
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/SOURCES.txt
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/dependency_links.txt
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/top_level.txt
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/__init__.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/angle_helpers.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/helper_functions.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/occupancy_field.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/pf.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/unit_tests.py
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/package_run_dependencies/robot_localization
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/parent_prefix_path/robot_localization
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/ament_prefix_path.sh
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/ament_prefix_path.dsv
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/path.sh
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/path.dsv
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.bash
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.sh
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.zsh
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.dsv
+-- Symlinking: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/package.dsv
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/packages/robot_localization
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/cmake/robot_localizationConfig.cmake
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/cmake/robot_localizationConfig-version.cmake
+-- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/package.xml
+Listing '/home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization'...
+Compiling '/home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/helper_functions.py'...
+Compiling '/home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/pf.py'...

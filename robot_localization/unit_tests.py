@@ -13,9 +13,9 @@ def test_update_particle_weights():
     pf.occupancy_field.get_closest_obstacle_distance = lambda x, y: x * y
     
     pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, weight=1.0),
-        Particle(x=2.0, y=2.0, theta=0.0, weight=1.0),
-        Particle(x=3.0, y=3.0, theta=0.0, weight=1.0)
+        Particle(x=1.0, y=1.0, theta=0.0, w=1.0),
+        Particle(x=2.0, y=2.0, theta=0.0, w=1.0),
+        Particle(x=3.0, y=3.0, theta=0.0, w=1.0)
     ]
     
     r = [1.5, 2.5, 3.5]
@@ -23,12 +23,12 @@ def test_update_particle_weights():
     pf.update_particles_with_laser(r, theta)
 
     # Check that weights are weighted correctly based on the mock occupancy field. (weights should be particle 1 > particle 2 > particle 3)
-    assert pf.particle_cloud[0].weight > pf.particle_cloud[1].weight, "Particle 1 should have a higher weight than Particle 2"
-    assert pf.particle_cloud[1].weight > pf.particle_cloud[2].weight, "Particle 2 should have a higher weight than Particle 3"
+    assert pf.particle_cloud[0].w > pf.particle_cloud[1].w, "Particle 1 should have a higher weight than Particle 2"
+    assert pf.particle_cloud[1].w > pf.particle_cloud[2].w, "Particle 2 should have a higher weight than Particle 3"
 
     assert len(pf.particle_cloud) == 3, "Particle cloud should have 3 particles"
-    assert all(p.weight > 0 for p in pf.particle_cloud), "All particle weights should be positive"
-    assert math.isclose(sum(p.weight for p in pf.particle_cloud), 1.0), "Total weight should be normalized to 1"
+    assert all(p.w > 0 for p in pf.particle_cloud), "All particle weights should be positive"
+    assert math.isclose(sum(p.w for p in pf.particle_cloud), 1.0), "Total weight should be normalized to 1"
 
 
 def test_normalize_particles():
@@ -38,18 +38,18 @@ def test_normalize_particles():
     pf : ParticleFilter = ParticleFilter()
     
     pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, weight=2.0),
-        Particle(x=2.0, y=2.0, theta=0.0, weight=3.0),
-        Particle(x=3.0, y=3.0, theta=0.0, weight=5.0)
+        Particle(x=1.0, y=1.0, theta=0.0, w=2.0),
+        Particle(x=2.0, y=2.0, theta=0.0, w=3.0),
+        Particle(x=3.0, y=3.0, theta=0.0, w=5.0)
     ]
     
     # Normalize the particle weights
     pf.normalize_particles()
-    total_weight = sum(p.weight for p in pf.particle_cloud)
+    total_weight = sum(p.w for p in pf.particle_cloud)
     assert math.isclose(total_weight, 1.0), "Total weight should be normalized to 1"
     # Ensure particles have the same relative weights after normalization
-    assert math.isclose(pf.particle_cloud[0].weight / pf.particle_cloud[1].weight, 2.0 / 3.0), "Relative weights should be preserved after normalization"
-    assert math.isclose(pf.particle_cloud[1].weight / pf.particle_cloud[2].weight, 3.0 / 5.0), "Relative weights should be preserved after normalization"
+    assert math.isclose(pf.particle_cloud[0].w / pf.particle_cloud[1].w, 2.0 / 3.0), "Relative weights should be preserved after normalization"
+    assert math.isclose(pf.particle_cloud[1].w / pf.particle_cloud[2].w, 3.0 / 5.0), "Relative weights should be preserved after normalization"
 
 def test_resample_particles():
     rclpy.init()
@@ -61,9 +61,9 @@ def test_resample_particles():
     # We need to think about how the resample is made (random weighted choice)
     # For testing, we will create a simple scenario where one particle has a significantly higher weight than the others
     pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, weight=0.01),
-        Particle(x=2.0, y=2.0, theta=0.0, weight=0.01),
-        Particle(x=3.0, y=3.0, theta=0.0, weight=0.98)
+        Particle(x=1.0, y=1.0, theta=0.0, w=0.01),
+        Particle(x=2.0, y=2.0, theta=0.0, w=0.01),
+        Particle(x=3.0, y=3.0, theta=0.0, w=0.98)
     ]
     
     # Resample the particles
@@ -77,7 +77,7 @@ def test_resample_particles():
     assert any(p.x == 3.0 and p.y == 3.0 for p in pf.particle_cloud), "At least one particle should be the one with the highest weight (This check has a low, low probability of flagging a false positive)"
     # Check that the weights are reset to uniform distribution
     for p in pf.particle_cloud:
-        assert math.isclose(p.weight, 1/3), "All particle weights should be equal after resampling"
+        assert math.isclose(p.w, 1/3), "All particle weights should be equal after resampling"
 
 def test_initialize_particles():
     rclpy.init()
@@ -99,7 +99,7 @@ def test_initialize_particles():
     assert abs(mean_theta - 0.0) < 0.5, "Mean theta should be close to 0.0"
     # Ensure all particles have equal weights
     for p in pf.particle_cloud:
-        assert math.isclose(p.weight, 1/60), "All particle weights should be equal after initialization"
+        assert math.isclose(p.w, 1/60), "All particle weights should be equal after initialization"
 
     pf.destroy_node()
     rclpy.shutdown()

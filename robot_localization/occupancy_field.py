@@ -1,6 +1,8 @@
 """ An implementation of an occupancy field that you can use to implement
     your particle filter """
 
+import math
+
 import rclpy
 from nav_msgs.srv import GetMap
 import numpy as np
@@ -82,6 +84,37 @@ class OccupancyField(object):
                  upper_bounds[0]*r + self.map.info.origin.position.x),
                 (lower_bounds[1]*r + self.map.info.origin.position.y,
                  upper_bounds[1]*r + self.map.info.origin.position.y))
+
+    def raycast(self, x, y, theta, max_range=10.0):
+        """ Raycast from the specified (x,y) coordinate in the map at the
+            specified angle theta.  The raycast will return the distance to
+            the closest obstacle along that ray, or max_range if no obstacle
+            is found within max_range.
+            Args:
+                x: the x coordinate of the raycast origin in map coordinates
+                y: the y coordinate of the raycast origin in map coordinates
+                theta: the angle of the raycast in radians relative to the map
+                max_range: the maximum range to search for an obstacle along
+                    this raycast
+            Returns:
+                The distance to the closest obstacle along the raycast, or
+                max_range if no obstacle is found within max_range.
+        """
+        step_size = self.map.info.resolution/2.0
+        distance = 0.0
+        while distance < max_range:
+            x_coord = x + distance*math.cos(theta)
+            y_coord = y + distance*math.sin(theta)
+
+            grid_x = int((x_coord - self.map.info.origin.position.x) / self.map.info.resolution)
+            grid_y = int((y_coord - self.map.info.origin.position.y) / self.map.info.resolution)
+            if grid_x < 0 or grid_x >= self.map.info.width or grid_y < 0 or grid_y >= self.map.info.height:
+                return max_range
+            if self.map.data[grid_x + grid_y*self.map.info.width] > 0:
+                return distance
+            distance += step_size
+        return max_range
+        
 
     def get_closest_obstacle_distance(self, x, y):
         """ Compute the closest obstacle to the specified (x,y) coordinate in
