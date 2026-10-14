@@ -21,6 +21,7 @@ from robot_localization.occupancy_field import OccupancyField
 from robot_localization.helper_functions import TFHelper
 from rclpy.qos import qos_profile_sensor_data
 from robot_localization.angle_helpers import quaternion_from_euler
+from geometry_msgs.msg import PoseStamped
 
 class Particle(object):
     """ Represents a hypothesis (particle) of the robot's pose consisting of x,y and theta (yaw)
@@ -48,13 +49,23 @@ class Particle(object):
         return Pose(position=Point(x=self.x, y=self.y, z=0.0),
                     orientation=Quaternion(x=q[0], y=q[1], z=q[2], w=q[3]))
     
-    def predict(self, delta):
+    def predict(self, delta, old_odom_theta):
         """ Predict the next position based on the delta measured using
-            the odometry """
-        self.x += delta[0] * math.cos(self.theta) - delta[1] * math.sin(self.theta)
-        self.y += delta[0] * math.sin(self.theta) + delta[1] * math.cos(self.theta)
-        self.theta += delta[2]
-        self.theta = (self.theta + math.pi) % (2 * math.pi) - math.pi  # Normalize theta to [-pi, pi]
+            the odometry 
+
+            Note: input is in odom frame. the output will be in map frame for visualizations    
+        """
+        dx_odom, dy_odom, dtheta = delta
+        # convert old pose from odom frame into map frame for rviz simulation
+        c, s = math.cos(old_odom_theta), math.sin(old_odom_theta)
+        dx_robot =  c * dx_odom + s * dy_odom
+        dy_robot = -s * dx_odom + c * dy_odom
+
+        # apply the transformation on the delta
+        self.x += dx_robot * math.cos(self.theta) - dy_robot * math.sin(self.theta)
+        self.y += dx_robot * math.sin(self.theta) + dy_robot * math.cos(self.theta)
+        self.theta += dtheta
+        self.theta = (self.theta + math.pi) % (2 * math.pi) - math.pi
 
     # TODO: define additional helper functions if needed
 
@@ -86,7 +97,7 @@ class ParticleFilter(Node):
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
         self.scan_topic = "scan"        # the topic where we will get laser scans from 
 
-        self.n_particles = 10          # the number of particles to use
+        self.n_particles = 300          # the number of particles to use
 
         self.d_thresh = 0.2             # the amount of linear movement before performing an update
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
@@ -98,7 +109,7 @@ class ParticleFilter(Node):
 
         # publish the current particle cloud.  This enables viewing particles in rviz.
         self.particle_pub = self.create_publisher(ParticleCloud, "particle_cloud", qos_profile_sensor_data)
-        self.pose_pub = self.create_publisher(Pose, "robot_pose", qos_profile_sensor_data)
+        self.pose_pub = self.create_publisher(PoseStamped, "robot_pose", qos_profile_sensor_data)
 
         # laser_subscriber listens for data from the lidar
         self.create_subscription(LaserScan, self.scan_topic, self.scan_received, 10)
@@ -214,7 +225,11 @@ class ParticleFilter(Node):
         # just to get started we will fix the robot's pose to always be at the origin
         max_weight_particle = max(self.particle_cloud, key=lambda p: p.w)
         self.robot_pose = max_weight_particle.as_pose() # Compute the most likely pose (mode of the distribution)
-        self.pose_pub.publish(self.robot_pose)
+        msg = PoseStamped()
+        msg.header.frame_id = self.map_frame
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.pose = self.robot_pose
+        self.pose_pub.publish(msg)
 
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
@@ -243,8 +258,7 @@ class ParticleFilter(Node):
 
         for p in self.particle_cloud:
             before_pose = deepcopy(p)
-            p.predict(delta)
-            
+            p.predict(delta, old_odom_xy_theta[2])
             self.add_noise_to_pose(p)
             
             assert (p.x != before_pose.x or p.y != before_pose.y or p.theta != before_pose.theta), \
