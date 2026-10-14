@@ -3,3 +3,5 @@
 `ros2 launch neato2_gazebo neato_gauntlet_world.py`
 
 `ros2 launch robot_localization test_pf.py map_yaml:=robot_localization/maps/loc_map.yaml`
+
+`rviz2 -d ~/ros2_ws/src/robot_localization/rviz/amcl.rviz`
