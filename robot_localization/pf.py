@@ -214,10 +214,6 @@ class ParticleFilter(Node):
             sample.append(deepcopy(values[ind]))
         return sample
 
-    def is_free(self, x, y):
-        """ Check if the given (x,y) coordinate is free and on the occupancy grid map """
-        return self.occupancy_field.is_free(x, y)
-
     def update_robot_pose(self):
         """ Update the estimate of the robot's pose given the updated particles.
             There are two logical methods for this:
@@ -329,17 +325,11 @@ class ParticleFilter(Node):
         # make sure the distribution is normalized
         self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, weights, len(self.particle_cloud))
         for p in self.particle_cloud:
-            for _ in range(10):  # limit the number of attempts to find a free space
-                p.x += np.random.normal(0.0, noisex)
-                p.y += np.random.normal(0.0, noisey)
-                p.theta += np.random.normal(0.0, noisetheta)
-                p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
-                p.w = 1.0 / len(self.particle_cloud)
-                if self.is_free(p.x, p.y):
-                    break
-            else:
-                self.get_logger().warn("Failed to resample a free particle after 10 attempts, using last position")
-                p.w = 0.0
+            p.x += np.random.normal(0.0, noisex)
+            p.y += np.random.normal(0.0, noisey)
+            p.theta += np.random.normal(0.0, noisetheta)
+            p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
+            p.w = 1.0 / len(self.particle_cloud)
         self.normalize_particles()
 
     def resample_particles_2d_distribution(self):
@@ -406,22 +396,17 @@ class ParticleFilter(Node):
         sigma = 0.75
 
         for p in self.particle_cloud:
-            if not self.is_free(p.x, p.y):
-                p.w = 0.0
-                continue
             errors = []
             for index in beam_instances:
                 beam_r = r[index]
                 beam_theta = theta[index]
 
                 if not np.isfinite(beam_r) or beam_r > range_max:
-                    continue
+                    beam_r = range_max
 
                 particle_distance = self.occupancy_field.raycast(p.x, p.y, p.theta + beam_theta)
                 errors.append((beam_r - particle_distance) ** 2)
-            if not errors:
-                continue
-            p.w *= np.exp(-0.5 * np.mean(errors) / (sigma ** 2))
+            p.w = np.exp(-0.5 * np.mean(errors) / (sigma ** 2))
         raw_weights = np.array([p.w for p in self.particle_cloud])
 
         print(
@@ -480,10 +465,6 @@ class ParticleFilter(Node):
             xy_theta: a triple consisting of the mean x, y, and theta (yaw) to initialize the
                       particle cloud around.  If this input is omitted, the odometry will be used """
 
-        if hasattr(self, 'odom_pose'):
-            self.current_odom_xy_theta = \
-                self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
-
         variation = [1,1,math.pi/4]  # the standard deviation of the noise to add to each particle
         if xy_theta is None:
             xy_theta = self.transform_helper.convert_pose_to_xy_and_theta(self.odom_pose)
@@ -496,14 +477,6 @@ class ParticleFilter(Node):
             size=(self.n_particles, 3)
         )
         for t in particle_init_transform:
-            # check that particle is on a free space in the occupancy grid map, if not, resample until it is
-            for _ in range(100):  # limit the number of attempts to find a free space
-                if self.is_free(t[0], t[1]):
-                    break
-                t = np.random.normal(loc=xy_theta, scale=variation, size=(3,))
-            else:
-                self.get_logger().warn("Failed to initialize a free particle after 100 attempts, dropping it")
-                continue
             self.particle_cloud.append(Particle(x=t[0], y=t[1], theta=t[2], w=1))
         self.normalize_particles()
 
