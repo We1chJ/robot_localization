@@ -1,0 +1,47 @@
+[0.018s] Invoking command in '/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization -- -j16 -l16
+[0.177s] Built target ament_cmake_python_symlink_robot_localization
+[0.435s] running egg_info
+[0.453s] writing robot_localization.egg-info/PKG-INFO
+[0.453s] writing dependency_links to robot_localization.egg-info/dependency_links.txt
+[0.453s] writing top-level names to robot_localization.egg-info/top_level.txt
+[0.499s] reading manifest file 'robot_localization.egg-info/SOURCES.txt'
+[0.499s] writing manifest file 'robot_localization.egg-info/SOURCES.txt'
+[0.536s] Built target ament_cmake_python_build_robot_localization_egg
+[0.560s] Invoked command in '/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --build /home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization -- -j16 -l16
+[0.580s] Invoking command in '/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization
+[0.597s] -- Install configuration: ""
+[0.599s] -- Execute custom install script
+[0.600s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/robot_localization/pf.py
+[0.602s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/launch_map_server.py
+[0.603s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/test_amcl.py
+[0.603s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/launch/test_pf.py
+[0.603s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/pythonpath.sh
+[0.603s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/pythonpath.dsv
+[0.604s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/PKG-INFO
+[0.604s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/SOURCES.txt
+[0.604s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/dependency_links.txt
+[0.604s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization-0.0.0-py3.12.egg-info/top_level.txt
+[0.605s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/__init__.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/angle_helpers.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/helper_functions.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/occupancy_field.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/pf.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/unit_tests.py
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/package_run_dependencies/robot_localization
+[0.606s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/parent_prefix_path/robot_localization
+[0.607s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/ament_prefix_path.sh
+[0.607s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/ament_prefix_path.dsv
+[0.607s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/path.sh
+[0.608s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/environment/path.dsv
+[0.608s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.bash
+[0.608s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.sh
+[0.609s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.zsh
+[0.609s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/local_setup.dsv
+[0.609s] -- Symlinking: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/package.dsv
+[0.629s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/ament_index/resource_index/packages/robot_localization
+[0.629s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/cmake/robot_localizationConfig.cmake
+[0.629s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/cmake/robot_localizationConfig-version.cmake
+[0.629s] -- Up-to-date symlink: /home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/share/robot_localization/package.xml
+[0.700s] Listing '/home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization'...
+[0.700s] Compiling '/home/isa/Documents/Comp Robo/Project2/robot_localization/install/robot_localization/lib/python3.12/site-packages/robot_localization/pf.py'...
+[0.715s] Invoked command in '/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization' returned '0': CMAKE_PREFIX_PATH=${CMAKE_PREFIX_PATH}:/opt/ros/jazzy DEBUGINFOD_URLS=https://debuginfod.ubuntu.com /usr/bin/cmake --install /home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization
