@@ -110,7 +110,9 @@ class ParticleFilter(Node):
         # publish the current particle cloud.  This enables viewing particles in rviz.
         self.particle_pub = self.create_publisher(ParticleCloud, "particle_cloud", qos_profile_sensor_data)
         self.pose_pub = self.create_publisher(PoseStamped, "robot_pose", qos_profile_sensor_data)
-
+        self.create_timer(0.1, self.publish_robot_pose)  # Publish robot pose at 10 Hz
+    
+    
         # laser_subscriber listens for data from the lidar
         self.create_subscription(LaserScan, self.scan_topic, self.scan_received, 10)
 
@@ -225,17 +227,22 @@ class ParticleFilter(Node):
         # just to get started we will fix the robot's pose to always be at the origin
         max_weight_particle = max(self.particle_cloud, key=lambda p: p.w)
         self.robot_pose = max_weight_particle.as_pose() # Compute the most likely pose (mode of the distribution)
-        msg = PoseStamped()
-        msg.header.frame_id = self.map_frame
-        msg.header.stamp = self.get_clock().now().to_msg()
-        msg.pose = self.robot_pose
-        self.pose_pub.publish(msg)
+        self.publish_robot_pose()
 
         if hasattr(self, 'odom_pose'):
             self.transform_helper.fix_map_to_odom_transform(self.robot_pose,
                                                             self.odom_pose)
         else:
             self.get_logger().warn("Can't set map->odom transform since no odom data received")
+
+    def publish_robot_pose(self):
+        """ Publish the robot's pose as a PoseStamped message """
+        if self.robot_pose is not None:
+            msg = PoseStamped()
+            msg.header.frame_id = self.map_frame
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.pose = self.robot_pose
+            self.pose_pub.publish(msg)
 
     def update_particles_with_odom(self):
         """ Update the particles using the newly given odometry pose.
