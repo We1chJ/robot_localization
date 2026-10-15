@@ -85,6 +85,26 @@ class OccupancyField(object):
                 (lower_bounds[1]*r + self.map.info.origin.position.y,
                  upper_bounds[1]*r + self.map.info.origin.position.y))
 
+    def is_free(self, x, y):
+        """ Check if the given (x,y) coordinate is free and on the occupancy grid map """
+        map_data = np.asarray(self.map.data)
+        x_coord = (x - self.map.info.origin.position.x)/self.map.info.resolution
+        y_coord = (y - self.map.info.origin.position.y)/self.map.info.resolution
+        if type(x) is np.ndarray:
+            x_coord = np.floor(np.asarray(x_coord)).astype(int)
+            y_coord = np.floor(np.asarray(y_coord)).astype(int)
+        else:
+            x_coord = math.floor(x_coord)
+            y_coord = math.floor(y_coord)
+
+        is_valid = (x_coord >= 0) & (y_coord >= 0) & (x_coord < self.map.info.width) & (y_coord < self.map.info.height)
+        if type(x) is np.ndarray:
+            free = np.zeros(x_coord.shape, dtype=bool)
+            free[is_valid] = map_data[x_coord[is_valid] + y_coord[is_valid]*self.map.info.width] == 0
+            return free
+        else:
+            return is_valid and map_data[x_coord + y_coord*self.map.info.width] == 0
+
     def raycast(self, x, y, theta, max_range=10.0):
         """ Raycast from the specified (x,y) coordinate in the map at the
             specified angle theta.  The raycast will return the distance to
@@ -105,9 +125,8 @@ class OccupancyField(object):
         while distance < max_range:
             x_coord = x + distance*math.cos(theta)
             y_coord = y + distance*math.sin(theta)
-
-            grid_x = int((x_coord - self.map.info.origin.position.x) / self.map.info.resolution)
-            grid_y = int((y_coord - self.map.info.origin.position.y) / self.map.info.resolution)
+            grid_x = int(np.floor((x_coord - self.map.info.origin.position.x) / self.map.info.resolution))
+            grid_y = int(np.floor((y_coord - self.map.info.origin.position.y) / self.map.info.resolution))
             if grid_x < 0 or grid_x >= self.map.info.width or grid_y < 0 or grid_y >= self.map.info.height:
                 return max_range
             if self.map.data[grid_x + grid_y*self.map.info.width] > 0:
