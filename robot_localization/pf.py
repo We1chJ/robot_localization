@@ -104,6 +104,9 @@ class ParticleFilter(Node):
         self.a_thresh = math.pi/6       # the amount of angular movement before performing an update
         self.robot_pose = None
         self.odom_noise_rate = 0.03 # odom noise for pose prediction
+        self.inject_frac = 0.0 # percentage of all particles to be injected as random free sampling
+        self.lost_threshold = 0.05   # if the avg likelihood is below this threshold, the robot is probably kidnapped and lost
+        self.INJECTION_FRACTION = 0.3 # fraction of injected particles
 
         # pose_listener responds to selection of a new approximate robot location (for instance using rviz)
         self.create_subscription(PoseWithCovarianceStamped, 'initialpose', self.update_initial_pose, 10)
@@ -190,9 +193,12 @@ class ParticleFilter(Node):
             self.update_particles_with_odom()    # update based on odometry
             self.update_particles_with_laser(r, theta)   # update based on laser scan
             self.update_robot_pose()                # update robot's pose based on particles
+
             weights = np.array([p.w for p in self.particle_cloud])
-            if 1.0 / np.sum(weights ** 2) < 0.5 * len(self.particle_cloud):
-                self.resample_particles() 
+            ess = 1.0 / np.sum(weights ** 2) # effective sampling size
+            # ideally, resample when less than half of particles are contributing, or injection is needed
+            if ess < 0.5 * len(self.particle_cloud) or self.inject_frac > 0:
+                self.resample_particles()
         self.publish_particles(msg.header.stamp)
 
     def moved_far_enough_to_update(self, new_odom_xy_theta):
@@ -219,6 +225,19 @@ class ParticleFilter(Node):
     def is_free(self, x, y):
         """ Check if the given (x,y) coordinate is free and on the occupancy grid map """
         return self.occupancy_field.is_free(x, y)
+    
+    def random_free_particle(self):
+        """ A particle at a random free location on the map with a random heading """
+        info = self.occupancy_field.map.info
+        x_min, y_min = info.origin.position.x, info.origin.position.y
+        x_max = x_min + info.width * info.resolution
+        y_max = y_min + info.height * info.resolution
+        while True:
+            x = np.random.uniform(x_min, x_max)
+            y = np.random.uniform(y_min, y_max)
+            if self.is_free(x, y):
+                return Particle(x=x, y=y, theta=np.random.uniform(-math.pi, math.pi),
+                                w=1.0 / self.n_particles)
 
     def update_robot_pose(self):
         """ Update the estimate of the robot's pose given the updated particles.
@@ -355,6 +374,13 @@ class ParticleFilter(Node):
             else:
                 p.x, p.y, p.theta = x0, y0, th0   # keep the resampled pose rather than a wandered one
                 p.w = 1.0 / len(self.particle_cloud)
+
+        # inject particles based on the inject_frac (0 or self.INJECTION_FRACTION)
+        n_inject = int(self.inject_frac * len(self.particle_cloud))
+        if n_inject > 0:
+            for i in np.random.choice(len(self.particle_cloud), n_inject, replace=False):
+                self.particle_cloud[i] = self.random_free_particle()
+            print(f"Injected {n_inject} random particles")
         self.normalize_particles()
 
     def resample_particles_2d_distribution(self):
@@ -418,10 +444,13 @@ class ParticleFilter(Node):
         NUM_BEAMS = 10
         beam_instances = np.linspace(0, len(r) - 1, num=NUM_BEAMS, dtype=int)
         sigma = 0.25
+        # how confident are all the particles
+        likelihoods = []
 
         for p in self.particle_cloud:
             if not self.is_free(p.x, p.y):
                 p.w = 0.0
+                likelihoods.append(0.0)
                 continue
             errors = []
             for index in beam_instances:
@@ -441,7 +470,14 @@ class ParticleFilter(Node):
                 errors.append((beam_r - particle_distance) ** 2)
             if not errors:
                 continue
-            p.w *= np.exp(-0.5 * np.mean(errors) / (sigma ** 2))
+            likelihood = np.exp(-0.5 * np.mean(errors) / (sigma ** 2))
+            p.w *= likelihood
+            likelihoods.append(likelihood)
+
+        w_avg = float(np.mean(likelihoods)) if likelihoods else 0.0 # avg likelihood
+        self.inject_frac = self.INJECTION_FRACTION if w_avg < self.lost_threshold else 0.0 # if avg likelihood below threshold, inject
+        # print(f"w_avg={w_avg:.4f} inject={self.inject_frac:.2f}") 
+
         raw_weights = np.array([p.w for p in self.particle_cloud])
 
         print(
