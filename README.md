@@ -33,8 +33,7 @@ specific type of Bayesian filters, particle filters, as well as examining the
 effects of many specific design decisions and advanced techniques on the task of
 robot localization. This writeup will present details on the overall approach of
 our implementation of particle filters, small design adjustments we made on the
-algorithm, learnings from debuggings, and additional techniques, such as
-adaptive particle injections.
+algorithm, learnings from debuggings, and additional techniques, such as particle injections.
 
 ## 2. Particle Filters
 
