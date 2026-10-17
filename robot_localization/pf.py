@@ -95,7 +95,7 @@ class ParticleFilter(Node):
         self.base_frame = "base_footprint"   # the frame of the robot base
         self.map_frame = "map"          # the name of the map coordinate frame
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
-        self.scan_topic = "scan"        # the topic where we will get laser scans from 
+        self.scan_topic = "stable_scan"        # the topic where we will get laser scans from 
 
         self.n_particles = 300          # the number of particles to use
 
@@ -188,7 +188,7 @@ class ParticleFilter(Node):
             # we have moved far enough to do an update!
             self.update_particles_with_odom()    # update based on odometry
             self.update_particles_with_laser(r, theta)   # update based on laser scan
-            # self.update_robot_pose()                # update robot's pose based on particles
+            self.update_robot_pose()                # update robot's pose based on particles
             weights = np.array([p.w for p in self.particle_cloud])
             if 1.0 / np.sum(weights ** 2) < 0.5 * len(self.particle_cloud):
                 self.resample_particles() 
@@ -208,6 +208,7 @@ class ParticleFilter(Node):
             size: the number of samples
         """
         bins = np.add.accumulate(probabilities)
+        bins = bins / bins[-1] # last bin exactly 1.0, order preserved # ensure the last bin is 1.0 exactly to avoid floating point precision error
         indices = np.digitize(random_sample(size), bins)
         sample = []
         for ind in indices:
@@ -328,18 +329,31 @@ class ParticleFilter(Node):
         noisetheta = max(0.03, sigtheta * noisemod)
         # make sure the distribution is normalized
         self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, weights, len(self.particle_cloud))
+        # for p in self.particle_cloud:
+        #     for _ in range(10):  # limit the number of attempts to find a free space
+        #         p.x += np.random.normal(0.0, noisex)
+        #         p.y += np.random.normal(0.0, noisey)
+        #         p.theta += np.random.normal(0.0, noisetheta)
+        #         p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
+        #         p.w = 1.0 / len(self.particle_cloud)
+        #         if self.is_free(p.x, p.y):
+        #             break
+        #     else:
+        #         self.get_logger().warn("Failed to resample a free particle after 10 attempts, using last position")
+        #         p.w = 0.0
+
         for p in self.particle_cloud:
-            for _ in range(10):  # limit the number of attempts to find a free space
-                p.x += np.random.normal(0.0, noisex)
-                p.y += np.random.normal(0.0, noisey)
-                p.theta += np.random.normal(0.0, noisetheta)
-                p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
-                p.w = 1.0 / len(self.particle_cloud)
+            x0, y0, th0 = p.x, p.y, p.theta
+            for _ in range(10):
+                p.x = x0 + np.random.normal(0.0, noisex)
+                p.y = y0 + np.random.normal(0.0, noisey)
+                p.theta = (th0 + np.random.normal(0.0, noisetheta) + math.pi) % (2 * math.pi) - math.pi
                 if self.is_free(p.x, p.y):
+                    p.w = 1.0 / len(self.particle_cloud)
                     break
             else:
-                self.get_logger().warn("Failed to resample a free particle after 10 attempts, using last position")
-                p.w = 0.0
+                p.x, p.y, p.theta = x0, y0, th0   # keep the resampled pose rather than a wandered one
+                p.w = 1.0 / len(self.particle_cloud)
         self.normalize_particles()
 
     def resample_particles_2d_distribution(self):
@@ -400,10 +414,9 @@ class ParticleFilter(Node):
             r: the distance readings to obstacles
             theta: the angle relative to the robot frame for each corresponding reading 
         """
-
-        beam_instances = np.linspace(0, len(r) - 1, num=10, dtype=int)
-        range_max = 10
-        sigma = 0.75
+        NUM_BEAMS = 10
+        beam_instances = np.linspace(0, len(r) - 1, num=NUM_BEAMS, dtype=int)
+        sigma = 0.25
 
         for p in self.particle_cloud:
             if not self.is_free(p.x, p.y):
@@ -414,10 +427,16 @@ class ParticleFilter(Node):
                 beam_r = r[index]
                 beam_theta = theta[index]
 
-                if not np.isfinite(beam_r) or beam_r > range_max:
+                # reject readings that are invalid out of sensible range
+                if not np.isfinite(beam_r) or beam_r <= self.range_min or beam_r > self.range_max:
                     continue
 
                 particle_distance = self.occupancy_field.raycast(p.x, p.y, p.theta + beam_theta)
+
+                # if the raycast distance is infinite, clip it to range_max to avoid large error
+                if particle_distance is None or not np.isfinite(particle_distance):
+                    particle_distance = self.range_max
+                particle_distance = min(particle_distance, self.range_max)
                 errors.append((beam_r - particle_distance) ** 2)
             if not errors:
                 continue
@@ -512,10 +531,15 @@ class ParticleFilter(Node):
 
     def normalize_particles(self):
         """ Make sure the particle weights define a valid distribution (i.e. sum to 1.0) """
+        # default any invalid weights to 0.0
+        for p in self.particle_cloud:
+            if not np.isfinite(p.w) or p.w < 0:
+                p.w = 0.0
         sum_weights = sum(p.w for p in self.particle_cloud)
 
         for p in self.particle_cloud:
             p.w = p.w / sum_weights if sum_weights > 0 else 1.0 / len(self.particle_cloud)  # Avoid division by zero, assign equal weights if sum is zero
+        
         # Check for negatives / improper sum
         sum_weights = sum(p.w for p in self.particle_cloud)
         assert all(p.w >= 0 for p in self.particle_cloud), "Particle weights should be non-negative"
@@ -531,6 +555,8 @@ class ParticleFilter(Node):
 
     def scan_received(self, msg):
         self.last_scan_timestamp = msg.header.stamp
+        self.range_min = msg.range_min
+        self.range_max = msg.range_max
         # we throw away scans until we are done processing the previous scan
         # self.scan_to_process is set to None in the run_loop 
         if self.scan_to_process is None:
