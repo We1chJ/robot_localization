@@ -95,6 +95,7 @@ class ParticleFilter(Node):
         self.base_frame = "base_footprint"   # the frame of the robot base
         self.map_frame = "map"          # the name of the map coordinate frame
         self.odom_frame = "odom"        # the name of the odometry coordinate frame
+        # use stable scan to get precise timestamp for less drift due to time offset
         self.scan_topic = "stable_scan"        # the topic where we will get laser scans from 
 
         self.n_particles = 300          # the number of particles to use
