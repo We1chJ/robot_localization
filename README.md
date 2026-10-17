@@ -37,8 +37,20 @@ algorithm, learnings from debuggings, and additional techniques, such as particl
 
 ## 2. Particle Filters
 
+Our implementation of the particle filters follows a well-structured architecture:
+
+(talk about classes, interactions, critical functions, etc briefly)
+
 ## 3. Design Decisions
 
-## 4. Challeneges & Future Improvements
+### 3.1 Robot Pose Update Method
+
+### 3.2 Robot Kidnapping Problem 
+
+Unknown initial position
+
+kidnapping recovery (talk about particle injection)
+
+## 4. Challenges & Future Improvements
 
 ## 5. Lessons Learned
