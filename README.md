@@ -1,4 +1,5 @@
-# Commands to run for testing
+# Commands to Run 
+Gauntlet World
 
 `ros2 launch neato2_gazebo neato_gauntlet_world.py`
 
@@ -6,7 +7,7 @@
 
 `rviz2 -d robot_localization/rviz/amcl.rviz --ros-args -p use_sim_time:=true`
 
-# Mac run
+MAC Building
 
 `ros2 launch robot_localization test_pf.py map_yaml:="./robot_localization/maps/mac_1st_floor_9_23.yaml" use_sim_time:=true`
 
