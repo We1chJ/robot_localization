@@ -67,8 +67,6 @@ class Particle(object):
         self.theta += dtheta
         self.theta = (self.theta + math.pi) % (2 * math.pi) - math.pi
 
-    # TODO: define additional helper functions if needed
-
 class ParticleFilter(Node):
     """ The class that represents a Particle Filter ROS Node
         Attributes list:
@@ -202,6 +200,9 @@ class ParticleFilter(Node):
         self.publish_particles(msg.header.stamp)
 
     def moved_far_enough_to_update(self, new_odom_xy_theta):
+        """
+        Check if the robot has moved far enough to trigger an update.
+        """
         return math.fabs(new_odom_xy_theta[0] - self.current_odom_xy_theta[0]) > self.d_thresh or \
                math.fabs(new_odom_xy_theta[1] - self.current_odom_xy_theta[1]) > self.d_thresh or \
                math.fabs(self.transform_helper.angle_diff(new_odom_xy_theta[2], self.current_odom_xy_theta[2])) > self.a_thresh
@@ -247,14 +248,6 @@ class ParticleFilter(Node):
         """
         # first make sure that the particle weights are normalized
         self.normalize_particles()
-
-        # TODO: assign the latest pose into self.robot_pose as a geometry_msgs.Pose object
-        # just to get started we will fix the robot's pose to always be at the origin
-
-        # Take the most likely one approach
-        # max_weight_particle = max(self.particle_cloud, key=lambda p: p.w)
-        # self.robot_pose = max_weight_particle.as_pose() # Compute the most likely pose (mode of the distribution)
-
         # Take average
         x_avg = sum(p.x * p.w for p in self.particle_cloud)
         y_avg = sum(p.y * p.w for p in self.particle_cloud)
@@ -349,18 +342,6 @@ class ParticleFilter(Node):
         noisetheta = max(0.03, sigtheta * noisemod)
         # make sure the distribution is normalized
         self.particle_cloud = ParticleFilter.weighted_values(self.particle_cloud, weights, len(self.particle_cloud))
-        # for p in self.particle_cloud:
-        #     for _ in range(10):  # limit the number of attempts to find a free space
-        #         p.x += np.random.normal(0.0, noisex)
-        #         p.y += np.random.normal(0.0, noisey)
-        #         p.theta += np.random.normal(0.0, noisetheta)
-        #         p.theta = (p.theta + math.pi) % (2 * math.pi) - math.pi
-        #         p.w = 1.0 / len(self.particle_cloud)
-        #         if self.is_free(p.x, p.y):
-        #             break
-        #     else:
-        #         self.get_logger().warn("Failed to resample a free particle after 10 attempts, using last position")
-        #         p.w = 0.0
 
         for p in self.particle_cloud:
             x0, y0, th0 = p.x, p.y, p.theta
@@ -384,10 +365,8 @@ class ParticleFilter(Node):
         self.normalize_particles()
 
     def resample_particles_2d_distribution(self):
-        """ Resample the particles according to the new particle weights.
-            The weights stored with each particle should define the probability that a particular
-            particle is selected in the resampling step.  You may want to make use of the given helper
-            function draw_random_sample in helper_functions.py.
+        """ \
+        Deprecated attempt to resample particles using a 2D histogram of particle positions. This method is not used in the current implementation.
         """
         positions = np.array([(p.x, p.y) for p in self.particle_cloud])
         weights = np.array([p.w for p in self.particle_cloud])
@@ -583,6 +562,7 @@ class ParticleFilter(Node):
         assert math.isclose(sum_weights, 1.0), f"Particle sums should add to 1, but got {sum_weights}"
 
     def publish_particles(self, timestamp):
+        """ Publish the current particle cloud as a nav2_msgs/ParticleCloud message """
         msg = ParticleCloud()
         msg.header.frame_id = self.map_frame
         msg.header.stamp = timestamp
@@ -591,6 +571,7 @@ class ParticleFilter(Node):
         self.particle_pub.publish(msg)
 
     def scan_received(self, msg):
+        """ Callback function to handle new laser scans """
         self.last_scan_timestamp = msg.header.stamp
         self.range_min = msg.range_min
         self.range_max = msg.range_max

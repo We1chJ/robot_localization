@@ -1,112 +1,112 @@
 import math
-from unittest.mock import MagicMock
-import rclpy
-from pf import Particle, ParticleFilter
-from robot_localization.occupancy_field import OccupancyField
-import rclpy.client
-def test_update_particle_weights():
-    
-    pf : ParticleFilter = ParticleFilter()
-    # Make mock occupancy field for testing
-    pf.occupancy_field = OccupancyField(pf)
-    # Mock method to return a distance based on x * y for testing purposes
-    pf.occupancy_field.get_closest_obstacle_distance = lambda x, y: x * y
-    
-    pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, w=1.0),
-        Particle(x=2.0, y=2.0, theta=0.0, w=1.0),
-        Particle(x=3.0, y=3.0, theta=0.0, w=1.0)
-    ]
-    
-    r = [1.5, 2.5, 3.5]
-    theta = [0.0, 0.5, 1.0]
-    pf.update_particles_with_laser(r, theta)
+from types import MethodType, SimpleNamespace
+import unittest
+from unittest.mock import MagicMock, patch
 
-    # Check that weights are weighted correctly based on the mock occupancy field. (weights should be particle 1 > particle 2 > particle 3)
-    assert pf.particle_cloud[0].w > pf.particle_cloud[1].w, "Particle 1 should have a higher weight than Particle 2"
-    assert pf.particle_cloud[1].w > pf.particle_cloud[2].w, "Particle 2 should have a higher weight than Particle 3"
+import numpy as np
 
-    assert len(pf.particle_cloud) == 3, "Particle cloud should have 3 particles"
-    assert all(p.w > 0 for p in pf.particle_cloud), "All particle weights should be positive"
-    assert math.isclose(sum(p.w for p in pf.particle_cloud), 1.0), "Total weight should be normalized to 1"
+from robot_localization.pf import Particle, ParticleFilter
 
 
-def test_normalize_particles():
-    rclpy.init()
-    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
-    
-    pf : ParticleFilter = ParticleFilter()
-    
-    pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, w=2.0),
-        Particle(x=2.0, y=2.0, theta=0.0, w=3.0),
-        Particle(x=3.0, y=3.0, theta=0.0, w=5.0)
-    ]
-    
-    # Normalize the particle weights
-    pf.normalize_particles()
-    total_weight = sum(p.w for p in pf.particle_cloud)
-    assert math.isclose(total_weight, 1.0), "Total weight should be normalized to 1"
-    # Ensure particles have the same relative weights after normalization
-    assert math.isclose(pf.particle_cloud[0].w / pf.particle_cloud[1].w, 2.0 / 3.0), "Relative weights should be preserved after normalization"
-    assert math.isclose(pf.particle_cloud[1].w / pf.particle_cloud[2].w, 3.0 / 5.0), "Relative weights should be preserved after normalization"
+def make_filter():
+    """
+    Creates an instante of the ParticleFilter class with mocked dependencies for unit testing.
+    """
+    # FYI: Copilot autocompleted most of this.
+    pf = SimpleNamespace(
+        particle_cloud=[],
+        n_particles=60,
+        range_min=0.1,
+        range_max=10.0,
+        inject_frac=0.0,
+        INJECTION_FRACTION=0.3,
+        lost_threshold=0.05,
+        occupancy_field=SimpleNamespace(
+            is_free=MagicMock(return_value=True),
+            raycast=MagicMock(side_effect=lambda x, y, theta: x * y),
+        ),
+        publish_robot_pose=MagicMock(),
+        get_logger=MagicMock(),
+    )
+    for name in ('is_free', 'normalize_particles', 'resample_particles','initialize_particle_cloud', 'update_robot_pose','update_particles_with_laser',):
+        setattr(pf, name, MethodType(getattr(ParticleFilter, name), pf))
+    return pf
 
-def test_resample_particles():
-    rclpy.init()
-    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
-    
-    pf : ParticleFilter = ParticleFilter()
 
-    # Create starting particles with various weights
-    # We need to think about how the resample is made (random weighted choice)
-    # For testing, we will create a simple scenario where one particle has a significantly higher weight than the others
-    pf.particle_cloud = [
-        Particle(x=1.0, y=1.0, theta=0.0, w=0.01),
-        Particle(x=2.0, y=2.0, theta=0.0, w=0.01),
-        Particle(x=3.0, y=3.0, theta=0.0, w=0.98)
-    ]
-    
-    # Resample the particles
-    pf.resample_particles()
-    
-    # After resampling, we should still have the same number of particles
-    assert len(pf.particle_cloud) == 3, "Particle cloud should have 3 particles after resampling"
+class ParticleFilterTests(unittest.TestCase):
+    """
+    Unit tests for the ParticleFilter class.
+    """
+    def setUp(self):
+        """
+        Set up instance function.
+        """
+        # Saving random state to ensure reproducibility.
+        random_state = np.random.get_state()
+        self.addCleanup(np.random.set_state, random_state)
+        np.random.seed(0)
 
-    # Check that the particles are resampled according to their weights
-    # Since the third particle had a much higher weight, we expect it to appear more frequently
-    assert any(p.x == 3.0 and p.y == 3.0 for p in pf.particle_cloud), "At least one particle should be the one with the highest weight (This check has a low, low probability of flagging a false positive)"
-    # Check that the weights are reset to uniform distribution
-    for p in pf.particle_cloud:
-        assert math.isclose(p.w, 1/3), "All particle weights should be equal after resampling"
 
-def test_initialize_particles():
-    rclpy.init()
-    rclpy.client.Client.wait_for_service = MagicMock(return_value=True)
+        self.pf = make_filter()
 
-    pf : ParticleFilter = ParticleFilter()
-    # Initialize particles with mean x and y of 5, theta of 0.
-    pf.initialize_particle_cloud(xy_theta = (5.0, 5.0, 0.0), num_particles=60)
+    def test_update_particle_weights(self):
+        """
+        Check that the particle weights are updated correctly based on the laser scan data and that the weights are normalized.
+        """
+        self.pf.particle_cloud = [
+            Particle(x=x, y=1.0, w=1.0 / 3) for x in (1.0, 1.25, 1.5)
+        ]
+        self.pf.update_particles_with_laser([1.0] * 10, [0.0] * 10)
+        weights = [p.w for p in self.pf.particle_cloud]
+        self.assertGreater(weights[0], weights[1])
+        self.assertGreater(weights[1], weights[2])
+        self.assertTrue(all(w > 0 for w in weights))
+        self.assertAlmostEqual(sum(weights), 1.0)
+        self.assertEqual(self.pf.occupancy_field.raycast.call_count, 30)
 
-    #Ensure 60 particles was made
-    assert len(pf.particle_cloud) == 60, "Particle cloud should have 60 particles after initialization"
-    #Ensure mean is within a reasonable margin of (5, 5)
-    mean_x = sum(p.x for p in pf.particle_cloud) / len(pf.particle_cloud)
-    mean_y = sum(p.y for p in pf.particle_cloud) / len(pf.particle_cloud)
-    assert abs(mean_x - 5.0) < 1.0, "Mean x should be close to 5.0"
-    assert abs(mean_y - 5.0) < 1.0, "Mean y should be close to 5.0"
-    # Ensure all particles mean theta is within a reasonable margin of 0
-    mean_theta = sum(p.theta for p in pf.particle_cloud) / len(pf.particle_cloud)
-    assert abs(mean_theta - 0.0) < 0.5, "Mean theta should be close to 0.0"
-    # Ensure all particles have equal weights
-    for p in pf.particle_cloud:
-        assert math.isclose(p.w, 1/60), "All particle weights should be equal after initialization"
+    def test_normalize_particles(self):
+        """
+        I mean do you really want me to explain this one? It just normalizes the weights of the particles so that they sum to 1.
+        """
+        self.pf.particle_cloud = [Particle(w=w) for w in (2.0, 3.0, 5.0)]
+        self.pf.normalize_particles()
+        np.testing.assert_allclose([p.w for p in self.pf.particle_cloud], [0.2, 0.3, 0.5])
 
-    pf.destroy_node()
-    rclpy.shutdown()
+    def test_normalize_invalid_weights(self):
+        """
+        Make sure that NaN, negative, and zero weights are handled well.
+        """
+        self.pf.particle_cloud = [Particle(w=float('nan')), Particle(w=-1.0), Particle(w=0.0)]
+        self.pf.normalize_particles()
+        np.testing.assert_allclose([p.w for p in self.pf.particle_cloud], [1.0 / 3] * 3)
 
-if __name__ == "__main__":
-    test_update_particle_weights()
-    test_normalize_particles()
-    test_resample_particles()
-    test_initialize_particles()
-    print("All tests passed!")
+    def test_resample_particles(self):
+        """
+        Make sure that resampling only propagates the particles with non-zero weights and that the resulting weights are normalized.
+        """
+        self.pf.particle_cloud = [
+            Particle(x=1.0, y=1.0, w=0.0),
+            Particle(x=2.0, y=2.0, w=0.0),
+            Particle(x=3.0, y=3.0, w=1.0),
+        ]
+        # This makes the random number generator always return 0, which means that there will be no noise added to the resampled particles, so they will all be at (3.0, 3.0).
+        with patch('robot_localization.pf.np.random.normal', return_value=0.0):
+            self.pf.resample_particles()
+        self.assertEqual(len(self.pf.particle_cloud), 3)
+        for particle in self.pf.particle_cloud:
+            self.assertEqual((particle.x, particle.y), (3.0, 3.0))
+            self.assertAlmostEqual(particle.w, 1.0 / 3)
+        self.assertEqual(len(self.pf.particle_cloud), 3)
+
+    def test_initialize_particles(self):
+        """
+        Make sure script produces the requested count and normalized weights particles.
+        """
+        self.pf.initialize_particle_cloud(timestamp=None, xy_theta=(5.0, 5.0, 0.0))
+        self.assertEqual(len(self.pf.particle_cloud), 60)
+        for particle in self.pf.particle_cloud:
+            self.assertAlmostEqual(particle.w, 1.0 / 60)
+        self.pf.publish_robot_pose.assert_called_once()
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)

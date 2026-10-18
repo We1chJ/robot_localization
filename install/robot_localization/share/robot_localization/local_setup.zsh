@@ -1,1 +1,0 @@
-/home/isa/Documents/Comp Robo/Project2/robot_localization/build/robot_localization/ament_cmake_environment_hooks/local_setup.zsh
