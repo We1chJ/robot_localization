@@ -81,6 +81,36 @@ To be able to recover from an unexpected offset, the robot needs to first identi
 
 Once identified, we will intentionally inject by overwriting a fraction of the current particles to be completely randomly distributed across the entire map. This alone allows the algorithm to have enough possibility to catch onto another single particle that is closer to the new true pose. As more data and update cycles go by, this single particle will gather more and more weights until it is enough to correct the pose estimation.
 
+### 3.3 Sensor Model
+
+The sensor model decides how well each particle explains the current lidar scan, and it went through two major versions.
+
+#### 3.3.1 Closest-Obstacle Model (initial approach)
+
+Our first sensor model compared a single number per particle: the shortest reading in the lidar scan against the distance from the particle to its nearest obstacle on the map. The particle's weight was simply set to the inverse of the difference between the two.
+
+This approach had two main problems. First, it threw away most of the scan. One distance carries no information about direction, so a particle facing the wrong way, or standing anywhere with the same clearance to a wall, received the same weight as the true pose. On the other hand, the inverse function was numerically unstable. When the two distances happened to nearly match, the weight shot toward infinity and one particle dominated the entire cloud, which led to us running into NaN weights. This version is still in the code as `update_particles_with_laser_closest_obstacle` for reference, but no longer used.
+
+#### 3.3.2 Ray-Casting Model (final approach)
+
+In the final version, we replaced it with a ray-casting model. We added a `raycast` method that shoots a ray from a given pose and returns the distance to the first occupied cell. For each particle, we pick 10 beams spread evenly across the scan, cast a ray from the particle along each beam's angle, and compare the predicted distance with the measured one. The mean squared error over the beams is converted into a likelihood score. Because every beam points in a different direction, this model uses the shape of the surroundings and the particle's heading rather than a single closest wall value, producing much better localization resolution and results.
+
+We made several refinements to this model:
+
+- **Sharper σ.** We first used σ = 0.75 m, which wasn't strong enough to provide clear enough details for the localization estimation. Lowering σ to 0.25 m provided a much sharper results, where the filter separates good and bad hypotheses much more clearly.
+- **Handling invalid readings.** Originally, non-finite or out-of-range readings were replaced with a fixed 10 m, which penalized particles for measurements the lidar never really made. We now skip any reading that is non-finite or outside the scan's own `range_min`/`range_max`, to be precise, and clip predicted distances to `range_max` so that open space in the map does not produce artificially large errors, causing drastic movements of the robot pose.
+- **Rejecting impossible poses.** Any particle that ends up inside an obstacle or off the map receives a weight of zero, regardless of how well its rays match.
+
+### 3.4 Parameter Tuning
+
+The table below summarizes the main parameters in our final implementation and why we chose them.
+
+| Parameter | Value | Reasoning |
+|---|---|---|
+| Number of particles | 300 | For our cases, 300 particles were a good balance between performance and computational complexity to have enough for the cloud to converge while keeping ray-casting fast enough to run in real time. Lowering this can lead to faster robot pose updates but potentially less accurate results for certain situations. |
+| Beams per particle | 10 | Evenly spaced across the scan. Gives enough directional information for a useful match without costing too much computational performance (see 3.3.2). |
+| Sensor σ | 0.25 m | Lowered from 0.75 m so that likelihoods distinguish poses that are off by tens of centimeters. |
+| Injection fraction | 0.3 | When lost, 30% of particles are replaced with random free-space particles: enough to search the map while keeping most of the current cloud in case the drop was temporary or a false alarm. |
 
 ## 4. Challenges & Future Improvements
 It was difficult to work with lidar measurements since they could not be properly compared with the distances predicted by the map. The filter now rejects any measurements that are non-finite and also removes those which are outside the sensor's stated range. The distances which are predicted are restricted to the maximum range of the scan. Yet presently the raycaster looks as far as 10 m by default, and this still amounts to a limitation when it comes to longer readings.
@@ -97,6 +127,7 @@ This project demonstrated that coordinate-frame errors are able to take control 
 The fact that we separated map operations into OccupancyField also enabled us to test weighting on its own. By using mocked raycasts we were able to verify whether better agreement between the measurements led to higher particle weights without having to run the entire robot system.
 
 The intermediate values that were published together with RViz proved useful in detecting instances when particles moved incorrectly or lost agreement with the lidar data, and we also realised that we should check the raw sensor readings and their limits before concluding that the unexpected behaviour was due to the filter.
+
 
 ## 6. Recorded Bag Details
 We evaluated the particle filter using three recorded datasets: a kidnapping recovery test in the Gauntlet environment and two recordings from the first floor of the MAC building.
