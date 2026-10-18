@@ -1,0 +1,12 @@
+# Python dependencies used by the particle filter and unit tests.
+# Historical .venv metadata was not available, so versions are not pinned.
+numpy
+scikit-learn
+
+# Install ROS 2 Jazzy and source /opt/ros/jazzy/setup.bash separately.
+# rclpy, ROS message packages (including nav2_msgs), tf2_ros, and PyKDL
+# are system/ROS dependencies and are not installed by this file.
+# To access system ROS dependencies from a virtual environment, create it with:
+# python3 -m venv --system-site-packages .venv
+# Then install these dependencies with:
+# .venv/bin/python -m pip install -r requirements.txt
